@@ -1,0 +1,20 @@
+{
+  "index.qmd": {
+    "index.html": "b3132f00"
+  },
+  "replication.qmd": {
+    "replication.html": "23fa56eb"
+  },
+  "subgroup_sex.qmd": {
+    "subgroup_sex.html": "6a443c29"
+  },
+  "exploration.qmd": {
+    "exploration.html": "3bf9fff1"
+  },
+  "about.qmd": {
+    "about.html": "3f184c5d"
+  },
+  "subgroups.qmd": {
+    "subgroups.html": "83f98742"
+  }
+}

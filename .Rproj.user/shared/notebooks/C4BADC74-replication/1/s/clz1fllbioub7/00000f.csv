@@ -1,0 +1,2 @@
+"0","gbm_model <- train(gallstone_status ~ ., data = train_data, method = ""gbm"", verbose = FALSE)"
+"0","gbm_metrics <- get_metrics(predict(gbm_model, test_data), predict(gbm_model, test_data, type = ""prob"")[, ""yes""], y_test)"

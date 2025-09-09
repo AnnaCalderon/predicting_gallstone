@@ -1,0 +1,294 @@
+---
+title: "Replication of Gallstone Prediction Study (Esen et al., 2024)"
+author: "Anna Calderon"
+date: "`r Sys.Date()`"
+format:
+  html:
+    code-fold: true
+
+notebook-view:
+  - notebook: penguins.ipynb
+    title: "Data source and publication"
+    url: https://archive.ics.uci.edu/dataset/1150/gallstone-1
+---
+
+
+
+
+
+```{r set-up, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(caret)
+library(janitor)
+library(corrplot)
+library(e1071)
+library(randomForest)
+library(glmnet)
+library(xgboost)
+library(naivebayes)
+library(pROC)
+library(GGally)
+library(knitr)
+library(kableExtra)
+library(gbm)
+library(readxl)
+```
+
+
+## 1. Load and Prepare Data
+
+```{r load-data}
+# Load your cleaned dataset
+raw_data <- read_xlsx("data/dataset-uci.xlsx")  # update path
+
+# Convert target to factor with valid R variable names
+raw_data <- raw_data %>%
+  clean_names() %>%
+  mutate(gallstone_status = factor(gallstone_status, levels = c(0, 1), labels = c("no", "yes")))
+
+# Confirm class balance
+table(raw_data$gallstone_status)
+```
+
+## 2. Split Data: Train-Test (70-30)
+
+```{r split-data}
+set.seed(123)
+train_index <- createDataPartition(raw_data$gallstone_status, p = 0.7, list = FALSE)
+train_data <- raw_data[train_index, ]
+test_data <- raw_data[-train_index, ]
+```
+
+## 3. Train Multiple Models
+
+### Helper: Performance Metrics
+
+```{r metric-function}
+get_metrics <- function(pred, prob, actual) {
+  conf <- confusionMatrix(pred, actual)
+  
+  # Ensure AUC is stored as a plain numeric scalar
+  auc_value <- tryCatch({
+    as.numeric(pROC::auc(pROC::roc(as.numeric(actual), as.numeric(prob))))
+  }, error = function(e) NA)
+  
+  data.frame(
+    Accuracy = conf$overall["Accuracy"],
+    Precision = conf$byClass["Precision"],
+    Recall = conf$byClass["Recall"],
+    F1 = conf$byClass["F1"],
+    AUC = auc_value
+  )
+}
+```
+
+### Logistic Regression with glmnet (Ridge)
+
+```{r glmnet}
+x_train <- model.matrix(gallstone_status ~ ., train_data)[,-1]
+y_train <- train_data$gallstone_status
+x_test <- model.matrix(gallstone_status ~ ., test_data)[,-1]
+y_test <- test_data$gallstone_status
+
+cv_fit <- cv.glmnet(x_train, y_train, alpha = 0, family = "binomial")
+lr_prob <- predict(cv_fit, newx = x_test, s = "lambda.min", type = "response")
+lr_pred <- factor(ifelse(lr_prob > 0.5, "yes", "no"), levels = levels(y_test))
+lr_glmnet_metrics <- get_metrics(lr_pred, lr_prob, y_test)
+```
+
+### Random Forest
+
+```{r rf}
+rf_model <- train(gallstone_status ~ ., data = train_data, method = "rf")
+rf_metrics <- get_metrics(predict(rf_model, test_data), predict(rf_model, test_data, type = "prob")[, "yes"], y_test)
+```
+
+### Gradient Boosting (GBM)
+
+```{r gbm}
+gbm_model <- train(gallstone_status ~ ., data = train_data, method = "gbm", verbose = FALSE)
+gbm_metrics <- get_metrics(predict(gbm_model, test_data), predict(gbm_model, test_data, type = "prob")[, "yes"], y_test)
+```
+
+### Naive Bayes
+
+```{r nb}
+nb_model <- train(gallstone_status ~ ., data = train_data, method = "naive_bayes")
+nb_metrics <- get_metrics(predict(nb_model, test_data), predict(nb_model, test_data, type = "prob")[, "yes"], y_test)
+```
+
+### Support Vector Machine (RBF Kernel) with probabilities
+
+```{r svm}
+svm_model <- train(
+  gallstone_status ~ ., data = train_data,
+  method = "svmRadial",
+  trControl = trainControl(method = "cv", number = 5, classProbs = TRUE, savePredictions = "final"),
+  preProcess = c("center", "scale"),
+  tuneLength = 5
+)
+
+svm_pred <- predict(svm_model, test_data)
+svm_prob <- predict(svm_model, test_data, type = "prob")[, "yes"]
+svm_metrics <- get_metrics(svm_pred, svm_prob, y_test)
+```
+
+### Logistic Regression 
+
+```{r}
+# Classic Logistic Regression
+classic_lr_model <- glm(gallstone_status ~ ., data = train_data, family = binomial)
+classic_lr_prob <- predict(classic_lr_model, newdata = test_data, type = "response")
+classic_lr_pred <- factor(ifelse(classic_lr_prob > 0.5, "yes", "no"), levels = levels(test_data$gallstone_status))
+classic_lr_metrics <- get_metrics(classic_lr_pred, classic_lr_prob, test_data$gallstone_status)
+
+
+
+```
+
+## 4. Compare Model Performance
+
+```{r compare}
+
+# Combine both logistic models and others
+model_results <- list(
+  LR_Classic = classic_lr_metrics,
+  LR_GLMNET = lr_glmnet_metrics,
+  RF = rf_metrics,
+  GBM = gbm_metrics,
+  NB = nb_metrics,
+  SVM = svm_metrics
+)
+
+# Convert to data frame
+results_df <- bind_rows(lapply(model_results, function(df) {
+  df[] <- lapply(df, as.numeric)
+  df
+}), .id = "Model")
+
+colnames(results_df)[1] <- "Model"
+
+# Display sorted by AUC
+results_df %>%
+  arrange(desc(AUC))
+
+
+```
+
+```{r}
+# Create the published study results data frame
+published_results <- tibble::tibble(
+  Model = c("LR", "RF", "GB", "NB", "SVM", "AdaBoost", "XGBoost", "MLP", "DT", "KNN"),
+  Accuracy = c(0.8333, 0.8542, 0.8542, 0.6250, 0.4688, 0.8229, 0.8333, 0.6667, 0.6979, 0.4896),
+  Precision = c(0.86, 0.91, 0.91, 0.61, 0.52, 0.86, 0.93, 0.76, 0.78, 0.53),
+  Recall = c(0.83, 0.81, 0.81, 0.87, 0.29, 0.81, 0.75, 0.56, 0.62, 0.44),
+  F1 = c(0.84, 0.86, 0.86, 0.71, 0.37, 0.83, 0.83, 0.64, 0.69, 0.48),
+  AUC = c(0.83, 0.85, 0.85, 0.60, 0.48, 0.82, 0.84, 0.67, 0.70, 0.49)
+)
+
+
+# Render styled HTML table
+published_results %>%
+  kable(format = "html", digits = 2, caption = "Published Model Performance (Esen et al., 2024)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE)
+
+
+```
+
+
+```{r}
+# Load required package
+
+
+# Create the table
+published_results <- tibble::tibble(
+  Model = c("LR", "RF", "GB", "NB", "SVM"),
+  Accuracy = c(0.83, 0.85, 0.85, 0.63, 0.47),
+  Precision = c(0.86, 0.91, 0.91, 0.61, 0.52),
+  Recall = c(0.83, 0.81, 0.81, 0.87, 0.29),
+  `F1 Score` = c(0.84, 0.86, 0.86, 0.71, 0.37),
+  AUC = c(0.83, 0.85, 0.85, 0.60, 0.48)
+)
+
+# Display a nicely formatted HTML table
+published_results %>%
+  arrange(desc(AUC)) %>% 
+  kable(format = "html", digits = 2, caption = "Published Model Performance (Esen et al., 2024)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE)
+
+
+# Display a styled HTML table of your replication results
+rownames(results_df) <- NULL
+results_df %>%
+  arrange(desc(AUC)) %>% 
+  kable(format = "html", digits = 2, caption = "Replicated Model Performance") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE)
+```
+
+```{r}
+#| include: false
+# Your variable name mapping as a named vector
+# Variable name mapping (as before)
+variable_labels <- c(
+  body_mass_index_bmi = "Body Mass Index",
+  total_body_water_tbw = "Total Body Water",
+  extracellular_water_ecw = "Extracellular Water",
+  intracellular_water_icw = "Intracellular Water",
+  extracellular_fluid_total_body_water_ecf_tbw = "Extracellular Fluid to Total Body Water",
+  total_body_fat_ratio_tbfr_percent = "Total Body Fat Ratio",
+  lean_mass_lm_percent = "Lean Mass",
+  body_protein_content_protein_percent = "Body Protein Content",
+  visceral_fat_rating_vfr = "Visceral Fat Rating",
+  bone_mass_bm = "Bone Mass",
+  gallstone_status = "Gallstone Status",
+  age = "Age",
+  gender = "Gender",
+  comorbidity = "Comorbidity",
+  coronary_artery_disease_cad = "Coronary Artery Disease",
+  hypothyroidism = "Hypothyroidism",
+  hyperlipidemia = "Hyperlipidemia",
+  diabetes_mellitus_dm = "Diabetes Mellitus",
+  height = "Height",
+  weight = "Weight",
+  muscle_mass_mm = "Muscle Mass",
+  obesity_percent = "Obesity",
+  total_fat_content_tfc = "Total Fat Content",
+  visceral_fat_area_vfa = "Visceral Fat Area",
+  visceral_muscle_area_vma_kg = "Visceral Muscle Area",
+  hepatic_fat_accumulation_hfa = "Hepatic Fat Accumulation",
+  glucose = "Glucose",
+  total_cholesterol_tc = "Total Cholesterol",
+  low_density_lipoprotein_ldl = "Low Density Lipoprotein",
+  high_density_lipoprotein_hdl = "High Density Lipoprotein",
+  triglyceride = "Triglyceride",
+  aspartat_aminotransferaz_ast = "Aspartat Aminotransferaz",
+  alanin_aminotransferaz_alt = "Alanin Aminotransferaz",
+  alkaline_phosphatase_alp = "Alkaline Phosphatase",
+  creatinine = "Creatinine",
+  glomerular_filtration_rate_gfr = "Glomerular Filtration Rate",
+  c_reactive_protein_crp = "C-Reactive Protein",
+  hemoglobin_hgb = "Hemoglobin",
+  vitamin_d = "Vitamin D"
+)
+```
+
+## 5. Feature Importance from GBM
+
+```{r importance}
+
+
+# Get variable importance
+gbm_varimp <- varImp(gbm_model)
+
+# Update rownames with descriptive labels (if found)
+rownames(gbm_varimp$importance) <- variable_labels[rownames(gbm_varimp$importance)]
+
+plot(gbm_varimp, top = 15, main = "Top Features - Gradient Boosting")
+```
+
+## Conclusion
+
+- Factor levels are now recoded to valid names (`no`, `yes`) to enable class probability predictions.
+- SVM and all other models now support AUC and probability-based evaluation.
+- Gradient Boosting and Random Forest remain strong performers for gallstone prediction.

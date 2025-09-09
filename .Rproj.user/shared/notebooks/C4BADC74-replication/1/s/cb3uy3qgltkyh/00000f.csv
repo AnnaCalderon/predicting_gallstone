@@ -1,0 +1,4 @@
+"0","set.seed(123)"
+"0","train_index <- createDataPartition(raw_data$gallstone_status, p = 0.7, list = FALSE)"
+"0","train_data <- raw_data[train_index, ]"
+"0","test_data <- raw_data[-train_index, ]"

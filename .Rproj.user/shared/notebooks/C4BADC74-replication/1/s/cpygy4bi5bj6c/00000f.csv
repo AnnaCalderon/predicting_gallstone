@@ -1,0 +1,2 @@
+"0","rf_model <- train(gallstone_status ~ ., data = train_data, method = ""rf"")"
+"0","rf_metrics <- get_metrics(predict(rf_model, test_data), predict(rf_model, test_data, type = ""prob"")[, ""yes""], y_test)"

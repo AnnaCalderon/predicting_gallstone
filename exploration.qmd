@@ -1,0 +1,179 @@
+---
+title: "Exploring"
+format: html
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(tidyverse)
+library(ggplot2)
+library(skimr)
+library(corrplot)
+library(GGally)
+library(janitor)
+```
+
+```{r}
+raw_data <- read_xlsx("data/dataset-uci.xlsx") %>% 
+  clean_names() %>% 
+  mutate(gallstone_status = factor(gallstone_status))
+
+# 1. Quick structure and summary
+summary(raw_data)
+skim(raw_data)
+glimpse(raw_data)
+```
+
+```{r}
+# Convert target to factor
+raw_data <- raw_data %>%
+  clean_names() %>%
+  mutate(gallstone_status = factor(gallstone_status))
+
+# Confirm class balance
+table(raw_data$gallstone_status)
+```
+
+What the EDA Suggests 🟢 1. Class Balance Very balanced dataset:
+
+Gallstone = 1: 49.5% Gallstone = 0: 50.5%
+
+✅ Great for training classification models — no resampling needed.
+
+🟢 2. Boxplots and Correlations Your boxplots and pairwise correlations indicate some meaningful differences between gallstone vs. non-gallstone groups:
+
+BMI, Total Body Fat Ratio, and Visceral Fat Area:
+
+Slightly higher in the gallstone group.
+
+Consistent with known risk factors (metabolic syndrome, obesity).
+
+Glucose:
+
+Appears right-skewed with some extreme outliers.
+
+Higher glucose in gallstone group aligns with known diabetes/gallstone links.
+
+HDL (Good cholesterol):
+
+Positive correlation with gallstone presence is interesting — may warrant further stratification (e.g., by gender or BMI).
+
+🔵 3. Correlation Matrix Strong internal correlations among body composition variables (e.g., TBFR, VFA, BMI).
+
+Cholesterol and liver enzymes show lower correlations with gallstone status directly, but could still contribute in multivariate models.
+
+```{r}
+
+
+# 2. Missing values
+colSums(is.na(raw_data))
+
+# 3. Gallstone status distribution
+raw_data %>%
+  count(gallstone_status) %>%
+  mutate(percent = round(n / sum(n) * 100, 1))
+
+# 4. Histograms for all numeric variables
+raw_data %>%
+  select(where(is.numeric)) %>%
+  pivot_longer(cols = everything(), names_to = "variable", values_to = "value") %>%
+  ggplot(aes(x = value)) +
+  geom_histogram(bins = 30, fill = "steelblue", color = "white") +
+  facet_wrap(~variable, scales = "free") +
+  theme_minimal()
+
+# 5. Correlation matrix
+cor_data <- raw_data %>%
+  select(where(is.numeric)) %>%
+  cor(use = "complete.obs")
+
+corrplot(cor_data, method = "color", tl.cex = 0.6, number.cex = 0.5)
+
+# 6. Boxplots of selected variables by gallstone status
+selected_vars <- c("age", "body_mass_index_bmi", "glucose",
+                   "visceral_fat_area_vfa", "total_body_fat_ratio_tbfr_percent")
+
+raw_data %>%
+  select(gallstone_status, all_of(selected_vars)) %>%
+  pivot_longer(cols = -gallstone_status, names_to = "feature", values_to = "value") %>%
+  ggplot(aes(x = factor(gallstone_status), y = value, fill = factor(gallstone_status))) +
+  geom_boxplot() +
+  facet_wrap(~feature, scales = "free") +
+  labs(x = "Gallstone Status", y = NULL, fill = "Gallstone") +
+  theme_minimal()
+
+# 7. Pairwise scatterplots for top variables
+ggpairs(
+  raw_data,
+  columns = c("age", "body_mass_index_bmi", "glucose", "low_density_lipoprotein_ldl",
+              "high_density_lipoprotein_hdl", "gallstone_status"),
+  aes(color = factor(gallstone_status), alpha = 0.6)
+)
+
+
+
+```
+
+🧠 So What's Left to Explore? 🟡 1. Model Interpretability & Explainability The paper focused on performance metrics but not explainability.
+
+You can use:
+
+SHAP (Shapley Additive Explanations) to visualize per-patient risk contributions.
+
+LIME for local interpretability of models like GB or RF.
+
+These help bridge ML models and clinical trust.
+
+🟡 2. Subgroup or Stratified Analysis The paper gave aggregate results. You could explore:
+
+Sex-specific predictors (e.g., does CRP matter more in men vs. women?).
+
+Age groups or obesity classes as stratifiers.
+
+Interaction effects: CRP × BMI or TBW × gender.
+
+🟡 3. Alternative Feature Selection Methods They used ANOVA F-score.
+
+You could test:
+
+Recursive Feature Elimination (RFE)
+
+Boruta for random forest-based selection.
+
+LASSO (for sparse logistic regression).
+
+Compare performance vs. ANOVA features.
+
+🟡 4. Reproducibility & Transparency Rebuild their best models in R or Python and publish:
+
+Open code + documentation (especially useful for clinical researchers).
+
+Compare performance using different resampling strategies (e.g., repeated k-fold vs. 70/30 split).
+
+🟡 5. External Validation or Transfer Learning As they mention, results are limited to their population.
+
+If you can find an external gallstone dataset (e.g., from NHANES or another hospital):
+
+Apply or fine-tune their models (domain adaptation).
+
+Check generalizability.
+
+🟡 6. Clinical Tool or Dashboard Package their best-performing model into an app or web tool.
+
+Take patient inputs (CRP, vitamin D, TBW, etc.) and give risk prediction.
+
+You can build a shiny dashboard (R) or Flask app (Python).
+
+✨ Original Ideas You Could Publish or Share Topic Idea Model Explainability SHAP summary & force plots for key features Clinical Insight Subgroup analysis: CRP and TBW by gender or obesity level Reproducibility Open-source pipeline (data cleaning, modeling, evaluation) Feature Selection Comparison of ANOVA vs. Boruta vs. LASSO Visualization Interactive feature dashboard or model comparison tool Application Convert gradient boosting model into a clinical web tool
+
+Let me know if you'd like to:
+
+Rebuild one of their top models in R (e.g., xgboost with caret/tidymodels)?
+
+Apply SHAP or LIME for interpretability?
+
+Build a dashboard or app?
+
+Run subgroup analysis?

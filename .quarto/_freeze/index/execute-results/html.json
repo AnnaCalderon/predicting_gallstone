@@ -1,0 +1,15 @@
+{
+  "hash": "76b9875b03880dd7e47ec07357e4c3ae",
+  "result": {
+    "engine": "knitr",
+    "markdown": "---\ntitle: \"Study Replication: Early prediction of gallstone disease\"\nauthor: Anna Calderon\ntoc: true\nformat:\n  html:\n    code-fold: true\n---\n\n\n\n\nOriginal published study \n\nAccess to the published paper and data ser is available here: <https://journals.lww.com/md-journal/fulltext/2024/02230/early_prediction_of_gallstone_disease_with_a.40.aspx>.\n\n\n\n\n::: {.cell}\n\n```{.r .cell-code}\n1 + 1\n```\n\n::: {.cell-output .cell-output-stdout}\n\n```\n[1] 2\n```\n\n\n:::\n:::\n",
+    "supporting": [],
+    "filters": [
+      "rmarkdown/pagebreak.lua"
+    ],
+    "includes": {},
+    "engineDependencies": {},
+    "preserve": {},
+    "postProcess": true
+  }
+}

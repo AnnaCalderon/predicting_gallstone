@@ -1,0 +1,8 @@
+"0",""
+"0",""
+"0","# Display a styled HTML table of your replication results"
+"0","rownames(results_df) <- NULL"
+"0","results_df %>%"
+"0","  arrange(desc(AUC)) %>% "
+"0","  kable(format = ""html"", digits = 2, caption = ""Replicated Model Performance"") %>%"
+"0","  kable_styling(bootstrap_options = c(""striped"", ""hover"", ""condensed"", ""responsive""), full_width = FALSE)"

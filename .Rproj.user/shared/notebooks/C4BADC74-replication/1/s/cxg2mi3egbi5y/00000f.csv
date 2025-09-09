@@ -1,0 +1,8 @@
+"0","# Classic Logistic Regression"
+"0","classic_lr_model <- glm(gallstone_status ~ ., data = train_data, family = binomial)"
+"0","classic_lr_prob <- predict(classic_lr_model, newdata = test_data, type = ""response"")"
+"0","classic_lr_pred <- factor(ifelse(classic_lr_prob > 0.5, ""yes"", ""no""), levels = levels(test_data$gallstone_status))"
+"0","classic_lr_metrics <- get_metrics(classic_lr_pred, classic_lr_prob, test_data$gallstone_status)"
+"0",""
+"0",""
+"0",""

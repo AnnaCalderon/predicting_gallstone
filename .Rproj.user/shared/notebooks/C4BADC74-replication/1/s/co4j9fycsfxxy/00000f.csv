@@ -1,0 +1,2 @@
+"0","nb_model <- train(gallstone_status ~ ., data = train_data, method = ""naive_bayes"")"
+"0","nb_metrics <- get_metrics(predict(nb_model, test_data), predict(nb_model, test_data, type = ""prob"")[, ""yes""], y_test)"
