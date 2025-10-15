@@ -309,7 +309,16 @@ top_age <- top_age %>%
   select(-label)
 
 
-# --- 4. Generate Obisity Plot -------------------------------
+
+
+
+
+```
+
+
+```{r}
+
+# ---  Generate Obisity Plot -------------------------------
 
 
 # Optional: set custom colors for clarity
@@ -341,14 +350,22 @@ ggplot() +
   labs(x = NULL, y = "Importance", title = "Top Predictors by Obesity Class") +
   theme_minimal(base_size = 13) +
   theme(
-    strip.text = element_text(size = 12, face = "bold"),
+    strip.text = element_text(size = 9, face = "bold"),
     axis.text.x = element_text(size = 9, angle = 45, hjust = 1),
     axis.ticks.x = element_line(),
     panel.grid.major.x = element_line()
   )
 
 
-# --- 6. Generate gender Plot -------------------------------
+```
+
+### Stratify by Age Class
+Finally, models were trained across age categories: **<40**, **40–59**, and **60+ years**. Again, **CRP** consistently tops the list across all age brackets, but we see shifting roles in variables like **Creatinine**, **Triglycerides**, **ALT**, and **Vitamin D**.
+
+**Key Insight**:  
+While CRP remains central, aging appears to increase the role of **kidney function** and **lipid metabolism** markers in predicting gallstones, especially in the 60+ age group.
+```{r}
+# --- 6. Generate Age Plot -------------------------------
 # Optional: set custom colors for clarity
 group_colors <- c("<40" = "tomato", "40–59" = "forestgreen", "60+" = "steelblue")
 
@@ -371,34 +388,6 @@ g3 <- top_age %>%
   arrange(Overall) %>%
   mutate(Variable = factor(Variable, levels = Variable))
 
-
-
-```
-
-```{r}
-ggplot() +
-  geom_col(data = g1, aes(x = Variable, y = Overall, fill = Group), show.legend = FALSE) +
-  geom_col(data = g2, aes(x = Variable, y = Overall, fill = Group), show.legend = FALSE) +
-  geom_col(data = g3, aes(x = Variable, y = Overall, fill = Group), show.legend = FALSE) +
-  facet_wrap(~ Group, scales = "free", nrow = 1) +
-  coord_flip() +
-  scale_fill_manual(values = group_colors) +
-  labs(x = NULL, y = "Importance", title = "Top Predictors by Obesity Class") +
-  theme_minimal(base_size = 13) +
-  theme(
-    strip.text = element_text(size = 12, face = "bold"),
-    axis.text.x = element_text(size = 9, angle = 45, hjust = 1),
-    axis.ticks.x = element_line(),
-    panel.grid.major.x = element_line()
-  )
-```
-
-### Stratify by Age Class
-Finally, models were trained across age categories: **<40**, **40–59**, and **60+ years**. Again, **CRP** consistently tops the list across all age brackets, but we see shifting roles in variables like **Creatinine**, **Triglycerides**, **ALT**, and **Vitamin D**.
-
-**Key Insight**:  
-While CRP remains central, aging appears to increase the role of **kidney function** and **lipid metabolism** markers in predicting gallstones, especially in the 60+ age group.
-```{r}
 ggplot() +
   geom_col(data = g1, aes(x = Variable, y = Overall, fill = Group), show.legend = FALSE) +
   geom_col(data = g2, aes(x = Variable, y = Overall, fill = Group), show.legend = FALSE) +
@@ -409,7 +398,7 @@ ggplot() +
   labs(x = NULL, y = "Importance", title = "Top Predictors by Age Class") +
   theme_minimal(base_size = 13) +
   theme(
-    strip.text = element_text(size = 12, face = "bold"),
+    strip.text = element_text(size = 9, face = "bold"),
     axis.text.x = element_text(size = 9, angle = 45, hjust = 1),
     axis.ticks.x = element_line(),
     panel.grid.major.x = element_line()
